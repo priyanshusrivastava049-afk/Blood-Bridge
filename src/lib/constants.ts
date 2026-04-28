@@ -1,4 +1,3 @@
-import { Alert, Donor, BloodGroup } from '../types';
 
 export type HospitalStatus = 'available' | 'limited' | 'full';
 export type HospitalType = 'Government' | 'Private' | 'Charity';
@@ -22,34 +21,13 @@ export interface Hospital {
   region: string;
 }
 
-export const MOCK_DONORS: Donor[] = [
-  {
-    id: 'd1',
-    name: 'Rajan Kumar',
-    bg: 'O−',
-    loc: 'Dwarka, Delhi',
-    status: 'available',
-    lat: 28.5823,
-    lng: 77.0500,
-    lastDon: '2024-03-15',
-    dist: 1.8,
-    score: 98,
-    col: 'var(--green)'
-  },
-  {
-    id: 'd2',
-    name: 'Priya Nair',
-    bg: 'O−',
-    loc: 'Saket, Delhi',
-    status: 'available',
-    lat: 28.5244,
-    lng: 77.1925,
-    lastDon: '2024-02-10',
-    dist: 3.2,
-    score: 92,
-    col: 'var(--green)'
-  }
-];
+export interface Alert {
+  id: string;
+  type: 'shortage' | 'demand' | 'new';
+  message: string;
+  time: string;
+  severity: 'critical' | 'warning' | 'info';
+}
 
 export const MOCK_HOSPITALS: Hospital[] = [
   {
@@ -215,7 +193,7 @@ export const MOCK_HOSPITALS: Hospital[] = [
 ];
 
 export const MOCK_ALERTS: Alert[] = [
-  { id: '1', type: 'shortage', severity: 'critical', message: 'Gemini raised score 82→97 · Notifying 3 donors now', time: '2 mins ago' },
+  { id: '1', type: 'shortage', severity: 'critical', message: 'O- Negative Blood Shortage at AIIMS Delhi.', time: '2 mins ago' },
   { id: '2', type: 'demand', severity: 'warning', message: 'High Demand for ICU Beds in Noida Sector 27.', time: '15 mins ago' },
   { id: '3', type: 'new', severity: 'info', message: 'Jaypee Hospital synchronized to Live Grid.', time: '45 mins ago' }
 ];

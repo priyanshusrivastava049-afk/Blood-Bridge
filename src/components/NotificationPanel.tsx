@@ -9,7 +9,7 @@ interface NotificationPanelProps {
 }
 
 export default function NotificationPanel({ onRespond, notifStatus }: NotificationPanelProps) {
-  const [escTime, setEscTime] = useState(8 * 60);
+  const [escTime, setEscTime] = useState(7 * 60 + 12);
   const [clock, setClock] = useState('');
 
   useEffect(() => {

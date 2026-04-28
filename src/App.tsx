@@ -5,26 +5,15 @@ import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { RequestBloodModal } from './components/RequestBloodModal';
 import toast, { Toaster } from 'react-hot-toast';
-import { useFirebase } from './hooks/useFirebase';
 import { generatePrediction, parseUserInput } from './services/geminiService';
 import { fetchHospitalsFromOSM } from './services/osmService';
-import { MOCK_HOSPITALS as INITIAL_HOSPITALS, MOCK_ALERTS, Hospital, HospitalStatus } from './lib/constants';
-import { BloodRequest, Alert } from './types';
+import { MOCK_HOSPITALS as INITIAL_HOSPITALS, MOCK_ALERTS, Hospital, Alert, HospitalStatus } from './lib/constants';
 import L from 'leaflet';
-import { 
-  testConnection, 
-  subscribeHospitals, 
-  subscribeAlerts, 
-  createBloodRequest, 
-  subscribeBloodRequests 
-} from './services/firebaseService';
 
 // Pages
 import { LandingPage } from './pages/LandingPage';
 import { Dashboard } from './pages/Dashboard';
 import { MapPage } from './pages/MapPage';
-import { DonorPage } from './pages/DonorPage';
-import { DispatchPage } from './pages/DispatchPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 
 export default function App() {
@@ -51,50 +40,31 @@ export default function App() {
 
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [routeCoords, setRouteCoords] = useState<[number, number][] | null>(null);
 
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [aiPrediction, setAiPrediction] = useState<string>("Tactical analysis suggests shifting O- supply from AIIMS to Safdarjung within the next 45 minutes.");
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [firestoreHospitals, setFirestoreHospitals] = useState<Hospital[]>([]);
-  const { bloodRequests } = useFirebase();
+  const [alerts, setAlerts] = useState<Alert[]>(MOCK_ALERTS);
   const [smartInput, setSmartInput] = useState("");
   const [isProcessingSmart, setIsProcessingSmart] = useState(false);
 
-  // Combine firestore hospitals with OSM fetched ones
+  // Combine initial mock hospitals with OSM fetched ones
   const allHospitals = useMemo(() => {
     const combined = [...osmHospitals];
-    firestoreHospitals.forEach(h => {
+    INITIAL_HOSPITALS.forEach(h => {
       if (!combined.find(ch => ch.id === h.id)) {
         combined.push(h);
       }
     });
-
-    // Fallback if firestore is empty and we haven't fetched anything from OSM yet
-    if (combined.length === 0) {
-      return INITIAL_HOSPITALS;
-    }
-    
     return combined;
-  }, [osmHospitals, firestoreHospitals]);
+  }, [osmHospitals]);
 
-  // Initialization and Firebase Subscriptions
+  // Simulation and Loading
   useEffect(() => {
-    testConnection();
-
-    const unsubHospitals = subscribeHospitals(setFirestoreHospitals);
-    const unsubAlerts = subscribeAlerts((newAlerts) => {
-       if (newAlerts.length > 0) {
-         setAlerts(newAlerts);
-       } else {
-         setAlerts(MOCK_ALERTS);
-       }
-    });
-
-    // Trigger a professional transition success message
     const loadTimer = setTimeout(() => {
+      setIsLoading(false);
       toast.success('NEURAL GRID SYNCHRONIZED', {
         style: {
           background: '#0D1117',
@@ -105,17 +75,10 @@ export default function App() {
           letterSpacing: '0.1em'
         }
       });
-    }, 500);
+    }, 2000);
 
-    return () => {
-      unsubHospitals();
-      unsubAlerts();
-      clearTimeout(loadTimer);
-    };
-  }, []);
+    generatePrediction(allHospitals).then(setAiPrediction);
 
-  // Simulation Interval
-  useEffect(() => {
     const interval = setInterval(() => {
       setOsmHospitals(prev => {
         const updated = prev.map(h => {
@@ -129,15 +92,11 @@ export default function App() {
       setLastUpdate(new Date());
     }, 15000);
 
-    return () => clearInterval(interval);
-  }, []);
-
-  // AI Prediction
-  useEffect(() => {
-    if (allHospitals.length > 0) {
-       generatePrediction(allHospitals).then(setAiPrediction);
-    }
-  }, [allHospitals.length]); // Only re-predict when hospital count changes to avoid spamming
+    return () => {
+      clearInterval(interval);
+      clearTimeout(loadTimer);
+    };
+  }, [allHospitals]);
 
   const handleBoundsChange = useCallback((bounds: L.LatLngBounds) => {
     const south = bounds.getSouth();
@@ -250,31 +209,12 @@ export default function App() {
     }
   };
 
-  const handleRequestSubmit = async (data: any) => {
+  const handleRequestSubmit = (data: any) => {
     const target = selectedHospital?.name || "Global Network";
-    
-    try {
-      await createBloodRequest({
-        pat: data.patientName || "Anonymous",
-        hosp: target,
-        bg: data.bloodGroup,
-        units: Number(data.units),
-        urg: data.urgency,
-        status: 'waiting',
-        time: new Date().toISOString(),
-        lat: selectedHospital?.lat,
-        lng: selectedHospital?.lng
-      });
-
-      toast.success(`Protocol Initiated: ${data.units} units of ${data.bloodGroup} requested for ${target}`, {
-        duration: 5000,
-        icon: '🩸'
-      });
-    } catch (error) {
-      console.error(error);
-      toast.error("FAILED TO INITIATE PROTOCOL");
-    }
-    
+    toast.success(`Protocol Initiated: ${data.units} units of ${data.bloodGroup} requested for ${target}`, {
+      duration: 5000,
+      icon: '🩸'
+    });
     setIsRequestModalOpen(false);
   };
 
@@ -353,7 +293,6 @@ export default function App() {
                 alerts={alerts}
                 userLocation={userLocation}
                 openRequestModal={openRequestModal}
-                bloodRequests={bloodRequests}
                 onSyncHistory={() => toast.success('Historical feed synchronized.')}
               />
             } />
@@ -372,8 +311,8 @@ export default function App() {
                 setIsRequestModalOpen={setIsRequestModalOpen}
               />
             } />
-            <Route path="/dispatch" element={<DispatchPage />} />
-            <Route path="/donors" element={<DonorPage />} />
+            <Route path="/dispatch" element={<PlaceholderPage title="Live Dispatch" subtitle="Real-time emergency unit tracking" />} />
+            <Route path="/donors" element={<PlaceholderPage title="Donor Network" subtitle="Global blood source registry" />} />
             <Route path="/inventory" element={<PlaceholderPage title="Inventory" subtitle="Asset and supply chain monitoring" />} />
             <Route path="/analytics" element={<PlaceholderPage title="Analytics" subtitle="Deep-well data visualization" />} />
             <Route path="/reports" element={<PlaceholderPage title="Reports" subtitle="Mission debriefing logs" />} />

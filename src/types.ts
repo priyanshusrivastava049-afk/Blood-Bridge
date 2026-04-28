@@ -25,20 +25,11 @@ export interface BloodRequest {
   bg: BloodGroup;
   units: number;
   urg: Urgency;
-  score?: number;
+  score: number;
   status: RequestStatus;
   time: string;
   lat?: number;
   lng?: number;
-  userId?: string;
-}
-
-export interface Alert {
-  id: string;
-  type: 'shortage' | 'demand' | 'new';
-  message: string;
-  time: string;
-  severity: 'critical' | 'warning' | 'info';
 }
 
 export interface FeedItem {

@@ -12,15 +12,13 @@ import {
   Bell,
   Cpu,
   Loader2,
-  Sparkles,
-  Droplets
+  Sparkles
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Skeleton } from '../components/ui/Skeleton';
 import { NumberAnimate } from '../components/ui/NumberAnimate';
 import AIRecommendation from '../components/sidebar/AIRecommendation';
-import { Hospital } from '../lib/constants';
-import { BloodRequest, Alert } from '../types';
+import { Hospital, Alert } from '../lib/constants';
 import { getAIStatus } from '../services/geminiService';
 
 const StatsCard = ({ icon, label, val, sub, trend }: { icon: React.ReactNode, label: string, val: string | number, sub: string, trend?: 'up' | 'down' }) => (
@@ -70,7 +68,6 @@ interface DashboardProps {
   userLocation: [number, number] | null;
   openRequestModal: () => void;
   onSyncHistory: () => void;
-  bloodRequests?: BloodRequest[];
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -101,8 +98,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   alerts,
   userLocation,
   openRequestModal,
-  onSyncHistory,
-  bloodRequests = []
+  onSyncHistory
 }) => {
   return (
     <div className="space-y-8 relative pb-20">
@@ -217,17 +213,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
         ) : (
           <>
             <StatsCard 
-              icon={<Cpu size={20} />} 
-              label="AI EFFICIENCY" 
-              val="98.4%" 
+              icon={<Monitor size={20} />} 
+              label="SYNC NODES" 
+              val={allHospitals.length} 
               sub="GRID STATUS: 100%"
-              trend="up"
+              trend="down"
             />
             <StatsCard 
               icon={<Plus size={20} />} 
-              label="THROUGHPUT" 
-              val="242" 
-              sub="UNITS / DAY"
+              label="TOTAL CAPACITY" 
+              val={allHospitals.reduce((acc, h) => acc + h.availableBeds, 0).toLocaleString()} 
+              sub={`${allHospitals.length > 0 ? Math.round((allHospitals.reduce((acc, h) => acc + h.availableBeds, 0) / allHospitals.reduce((acc, h) => acc + h.totalBeds, 0)) * 100) : 0}% LOAD`}
               trend="up"
             />
             <StatsCard 
@@ -246,71 +242,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             />
           </>
         )}
-      </motion.div>
-      
-      {/* Live Procurement Queue */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25 }}
-        className="bg-white/5 border border-white/10 rounded-[40px] overflow-hidden backdrop-blur-xl shadow-inner-glow relative"
-      >
-        <div className="absolute inset-0 bg-scan-pattern opacity-5" />
-        <div className="p-8 border-b border-white/10 flex items-center justify-between relative z-10">
-          <div>
-            <h2 className="text-xl font-black text-white uppercase italic tracking-tight flex items-center gap-3">
-              <Droplets className="text-blood shadow-neon-red" size={24} />
-              Active Procurement Queue
-            </h2>
-            <p className="text-[10px] text-t3 font-black uppercase tracking-widest mt-1">Real-time matching of {bloodRequests.length} active vectors</p>
-          </div>
-          <div className="flex gap-2">
-            {['waiting', 'confirmed', 'matched', 'fulfilled'].map(s => (
-              <span key={s} className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[8px] font-black uppercase tracking-widest text-t3">
-                {s}: {bloodRequests.filter(r => r.status === s).length}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
-          {bloodRequests.length === 0 ? (
-            <div className="col-span-full py-12 flex flex-col items-center justify-center opacity-30 select-none">
-              <Crosshair size={48} className="text-t3 mb-4 animate-pulse" />
-              <p className="text-xs font-black uppercase tracking-[0.3em]">No Active Procurement Vectors</p>
-            </div>
-          ) : (
-            bloodRequests.slice(0, 4).map((req, i) => (
-              <motion.div 
-                key={req.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: i * 0.1 }}
-                className="p-5 rounded-3xl bg-white/5 border border-white/10 hover:border-blood/30 transition-all group relative overflow-hidden"
-              >
-                <div className={`absolute top-0 right-0 w-24 h-24 blur-3xl opacity-10 rounded-full ${req.urg === 'critical' ? 'bg-blood' : 'bg-blue'}`} />
-                <div className="flex justify-between items-start mb-4">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl border ${req.urg === 'critical' ? 'bg-blood/10 border-blood/20 text-blood shadow-neon-red' : 'bg-blue/10 border-blue/20 text-blue shadow-neon-blue'}`}>
-                    {req.bg}
-                  </div>
-                  <div className="text-right">
-                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${req.urg === 'critical' ? 'bg-blood text-white' : 'bg-blue text-white'}`}>
-                      {req.urg}
-                    </span>
-                    <p className="text-[10px] font-black text-t3 uppercase mt-1">{req.status}</p>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <h4 className="text-[13px] font-black text-white uppercase truncate">{req.pat}</h4>
-                  <p className="text-[10px] text-t3 font-black uppercase tracking-tight truncate">{req.hosp}</p>
-                </div>
-                <div className="mt-6 flex items-center justify-between">
-                  <span className="text-[14px] font-black text-white">{req.units} <span className="text-[9px] text-t3 uppercase">Units</span></span>
-                  <span className="text-[9px] font-black text-t3 uppercase tracking-tighter opacity-50">{new Date(req.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-              </motion.div>
-            ))
-          )}
-        </div>
       </motion.div>
 
       {/* Table and Alerts Box */}

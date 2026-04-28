@@ -4,7 +4,6 @@ import { Send, Hospital, User, Phone, Droplets, Clock, AlertCircle, Info, Chevro
 import { BloodGroup, Urgency } from '../types';
 import { BG_RARITY } from '../constants';
 import { TRANSLATIONS } from '../i18n';
-import { parseUserInput } from '../services/geminiService';
 
 interface RequestFormProps {
   onSubmit: (data: any) => void;
@@ -30,52 +29,34 @@ export default function RequestForm({ onSubmit, currentLang }: RequestFormProps)
   const [smartInput, setSmartInput] = useState('');
   const [confidence, setConfidence] = useState<number | null>(null);
 
-  const handleSmartExtract = async () => {
+  const handleSmartExtract = () => {
     if (!smartInput.trim()) return;
     setIsAiScanning(true);
     setConfidence(null);
-    
-    try {
-      const result = await parseUserInput(smartInput);
-      if (result) {
-        setFormData(prev => ({
-          ...prev,
-          bg: (result.bloodGroup as BloodGroup) || prev.bg,
-          units: result.units || prev.units,
-          urg: (result.urgency as Urgency) || prev.urg,
-          hosp: result.location.includes('AIIMS') ? 'AIIMS Delhi' : 
-                result.location.includes('Max') ? 'Max Saket' : 
-                result.location.includes('Fortis') ? 'Fortis Noida' : prev.hosp,
-          pat: 'Aakash Verma', // Simulated extracted patient
-        }));
-        setConfidence(94 + Math.random() * 5);
-      }
-    } catch (error) {
-      console.error("Smart extract failed, but fallback should have handled it.", error);
-    } finally {
+    // Simulate AI extraction logic
+    setTimeout(() => {
+      setFormData(prev => ({
+        ...prev,
+        hosp: smartInput.includes('AIIMS') ? 'AIIMS Delhi' : prev.hosp,
+        pat: 'Aakash Verma',
+        ph: '+91 91234 56789',
+        bg: 'O−',
+        urg: 'critical'
+      }));
+      setConfidence(94 + Math.random() * 5);
       setIsAiScanning(false);
       setSmartInput('');
-    }
+    }, 1500);
   };
 
   const score = useMemo(() => {
     const rare = BG_RARITY[formData.bg] || 50;
     const urgS = formData.urg === 'critical' ? 100 : formData.urg === 'high' ? 65 : 35;
-    
-    // Formula: 0.30 * rarity + 0.30 * urgency + 0.20 * hospital + 0.20 * logistics
-    // hospitalScore and logisticsScore are simulated based on current conditions
-    const hospitalScore = 95; // Simulated high hospital readiness
-    const logisticsScore = 90; // Simulated logistics throughput
-    
-    const calculated = Math.round(
-      (0.30 * rare) + 
-      (0.30 * urgS) + 
-      (0.20 * hospitalScore) + 
-      (0.20 * logisticsScore)
-    );
-    
+    const units = isNaN(formData.units) ? 0 : formData.units;
+    const unitS = Math.min(units * 20, 80);
+    const calculated = Math.round(0.30 * rare + 0.30 * urgS + 0.20 * 90 + 0.10 * 75 + 0.10 * (unitS / 2));
     return Math.min(Math.max(calculated, 10), 99);
-  }, [formData.bg, formData.urg]);
+  }, [formData.bg, formData.urg, formData.units]);
 
   const scoreColor = score >= 80 ? 'var(--blood)' : score >= 60 ? '#FF6B2D' : 'var(--gold)';
 

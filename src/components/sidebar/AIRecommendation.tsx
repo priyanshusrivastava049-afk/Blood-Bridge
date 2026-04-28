@@ -23,20 +23,21 @@ interface AIRecommendationProps {
 export default function AIRecommendation({ hospitals, userLocation, onSelectHospital, onRecommendation }: AIRecommendationProps) {
   const [situation, setSituation] = useState("");
   const [bloodGroup, setBloodGroup] = useState("O+");
-  const [result, setResult] = useState<TriageResult | null>(null);
+  const [result, setResult] = useState<(TriageResult & { hospital?: Hospital }) | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleAnalyze = async () => {
-    if (!hospitals?.length || !situation.trim()) return;
+    if (!hospitals?.length) return;
     setLoading(true);
     setResult(null);
     if (onRecommendation) onRecommendation(null);
 
     try {
       const res = await analyzeSituation(situation, bloodGroup, hospitals, userLocation);
-      setResult(res);
-      const topHospital = hospitals.find(h => h.id === res.recommended_id);
-      if (onRecommendation && topHospital) onRecommendation(topHospital);
+      const hospital = hospitals.find(h => h.id === res.recommended_id);
+      
+      setResult({ ...res, hospital });
+      if (onRecommendation && hospital) onRecommendation(hospital);
     } catch (e) {
       console.error(e);
     } finally {
@@ -91,13 +92,13 @@ export default function AIRecommendation({ hospitals, userLocation, onSelectHosp
             
             <button
               onClick={handleAnalyze}
-              disabled={loading || !hospitals.length || !situation.trim()}
+              disabled={loading || !hospitals.length}
               className="px-8 py-3 bg-blue hover:bg-blue/90 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-neon-blue transition-all disabled:opacity-50 flex items-center gap-2 relative overflow-hidden"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="animate-pulse">Neural Solve...</span>
+                  <span className="animate-pulse">Slowing Neural...</span>
                 </>
               ) : (
                 <>Analyze Situation</>
@@ -112,64 +113,52 @@ export default function AIRecommendation({ hospitals, userLocation, onSelectHosp
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="space-y-4"
+            className="bg-white/5 border border-white/10 rounded-[32px] overflow-hidden backdrop-blur-xl shadow-neon-blue relative"
           >
-            <div className="flex items-center gap-3 px-6 py-2 bg-blood/10 border border-blood/20 rounded-2xl">
-              <Droplets size={14} className="text-blood animate-pulse" />
-              <div className="text-[10px] font-black text-blood uppercase tracking-widest">
-                {result.urgency_level} VECTOR DETECTED · {result.blood_advice}
+            <div className="absolute inset-0 bg-blue/5 animate-pulse-fast pointer-events-none" />
+            <div className="p-6 relative z-10">
+              <div className="flex justify-between items-start mb-5">
+                <div className={`px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-[0.2em] shadow-sm ${urgencyStyle[result.urgency_level]}`}>
+                  {result.urgency_level} Vector
+                </div>
+                <div className="text-[28px] font-black font-mono text-blue drop-shadow-blue-glow italic">{result.tactical_score}% Match</div>
               </div>
-            </div>
 
-            <div className="space-y-3">
-              {result.ranked.map((rec, idx) => {
-                const hospital = hospitals.find(h => h.id === rec.hospital_id);
-                if (!hospital) return null;
+              <div className="mb-6">
+                <h4 className="text-[9px] font-black text-t3 uppercase tracking-[0.3em] mb-2 opacity-60">Neural Vector Lock</h4>
+                <div className="text-xl font-black text-white uppercase tracking-tight italic drop-shadow-sm">{result.hospital?.name}</div>
+                <div className="flex items-center gap-3 text-[10px] font-black text-t2 mt-2 uppercase tracking-widest">
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue/10 rounded border border-blue/20">
+                    <MapPin size={12} className="text-blue" />
+                    {result.hospital?.distance.toFixed(1)}km
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue/10 rounded border border-blue/20">
+                    <Clock size={12} className="text-blue" />
+                    {Math.round(result.hospital?.distance * 2.5)} min Sync
+                  </div>
+                </div>
+              </div>
 
-                return (
-                  <motion.div
-                    key={rec.hospital_id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className={`bg-white/5 border border-white/10 rounded-[24px] overflow-hidden backdrop-blur-xl transition-all hover:border-blue/40 relative group ${idx === 0 ? 'ring-1 ring-blue/30 shadow-neon-blue' : ''}`}
-                  >
-                    <div className="p-5">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex flex-col">
-                          <span className="text-[8px] font-black text-blue uppercase tracking-[0.2em] mb-1">Rank {idx + 1} Optimus</span>
-                          <h4 className="text-sm font-black text-white uppercase italic tracking-tight">{hospital.name}</h4>
-                        </div>
-                        <div className="text-2xl font-black font-mono text-blue drop-shadow-blue-glow">{rec.tactical_score}%</div>
-                      </div>
+              <div className="space-y-4 pt-5 border-t border-white/10">
+                <p className="text-[14px] text-white font-medium leading-relaxed italic opacity-90 border-l-2 border-blue/40 pl-4">
+                  "{result.ai_reasoning}"
+                </p>
+                
+                <div className="flex items-start gap-3 bg-blood/5 p-4 rounded-2xl border border-blood/10 border-dashed">
+                  <Droplets size={16} className="text-blood mt-0.5 flex-shrink-0 animate-pulse" />
+                  <p className="text-[11px] font-bold text-t2 leading-normal">
+                    <span className="text-blood uppercase font-black">Tactical Advice:</span> {result.blood_advice}
+                  </p>
+                </div>
 
-                      <p className="text-[12px] text-t2 leading-relaxed italic mb-4 opacity-80 border-l border-white/10 pl-3">
-                        "{rec.ai_reasoning}"
-                      </p>
-
-                      <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                        <div className="flex gap-4">
-                          <div className="flex items-center gap-1.5 text-[10px] font-black text-t3">
-                            <MapPin size={12} className="text-blue" />
-                            {hospital.distance.toFixed(1)}km
-                          </div>
-                          <div className="flex items-center gap-1.5 text-[10px] font-black text-t3">
-                            <Clock size={12} className="text-blue" />
-                            {Math.round(hospital.distance * 2.5)}m
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => onSelectHospital(hospital)}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue/10 hover:bg-blue hover:text-white border border-blue/20 rounded-xl transition-all"
-                        >
-                          <span className="text-[9px] font-black uppercase tracking-widest">Deploy</span>
-                          <ArrowRight size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
+                <button 
+                  onClick={() => onSelectHospital(result.hospital)}
+                  className="w-full flex items-center justify-between h-14 px-6 bg-blue/10 hover:bg-blue/20 border border-blue/20 rounded-2xl transition-all group shadow-inner-glow"
+                >
+                  <span className="text-[11px] font-black uppercase tracking-[0.3em] text-white">Initiate Deployment Path</span>
+                  <ArrowRight size={18} className="text-blue group-hover:translate-x-2 transition-transform" />
+                </button>
+              </div>
             </div>
           </motion.div>
         )}

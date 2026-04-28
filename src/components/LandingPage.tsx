@@ -1,52 +1,5 @@
 import { motion } from 'framer-motion';
 import { Droplets, Shield, Zap, Globe, Heart, ChevronRight, Activity, Users, Hospital, ShieldCheck } from 'lucide-react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { MeshDistortMaterial, Float, Sphere, PerspectiveCamera } from '@react-three/drei';
-import { useRef } from 'react';
-import * as THREE from 'three';
-
-function BloodCell({ position, scale, speed, distort }: any) {
-  const mesh = useRef<THREE.Mesh>(null!);
-  
-  useFrame((state) => {
-    const time = state.clock.getElapsedTime();
-    mesh.current.rotation.x = Math.cos(time / 4) * 0.2;
-    mesh.current.rotation.y = Math.sin(time / 2) * 0.2;
-  });
-
-  return (
-    <Float speed={speed} rotationIntensity={1.5} floatIntensity={2}>
-      <Sphere ref={mesh} args={[1, 64, 64]} position={position} scale={scale}>
-        <MeshDistortMaterial
-          color="#E8001A"
-          speed={speed}
-          distort={distort}
-          radius={1}
-          roughness={0.2}
-          metalness={0.8}
-          emissive="#550000"
-        />
-      </Sphere>
-    </Float>
-  );
-}
-
-function Scene() {
-  return (
-    <>
-      <PerspectiveCamera makeDefault position={[0, 0, 10]} />
-      <ambientLight intensity={0.5} />
-      <pointLight position={[10, 10, 10]} intensity={1} color="#ffffff" />
-      <spotLight position={[-10, 10, 10]} angle={0.15} penumbra={1} intensity={1} color="#E8001A" />
-      
-      <BloodCell position={[-4, 2, 0]} scale={2.2} speed={1.5} distort={0.4} />
-      <BloodCell position={[5, -1, 2]} scale={1.8} speed={2} distort={0.5} />
-      <BloodCell position={[-2, -4, -2]} scale={1.2} speed={1} distort={0.3} />
-      <BloodCell position={[3, 4, -3]} scale={1.5} speed={1.2} distort={0.4} />
-      <BloodCell position={[0, 0, -5]} scale={3} speed={0.8} distort={0.2} />
-    </>
-  );
-}
 
 interface LandingPageProps {
   onStart: () => void;
@@ -54,14 +7,7 @@ interface LandingPageProps {
 
 export default function LandingPage({ onStart }: LandingPageProps) {
   return (
-    <div className="bg-[#07090F] text-[#EEF3FF] min-h-screen font-sans selection:bg-[var(--blood)] selection:text-white relative">
-      {/* 3D BACKGROUND */}
-      <div className="fixed inset-0 z-0 pointer-events-none opacity-40">
-        <Canvas>
-          <Scene />
-        </Canvas>
-      </div>
-
+    <div className="bg-[#07090F] text-[#EEF3FF] min-h-screen font-sans selection:bg-[var(--blood)] selection:text-white">
       {/* HERO SECTION */}
       <section className="relative pt-32 pb-20 px-6 overflow-hidden">
         {/* Ambient background */}

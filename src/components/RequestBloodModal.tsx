@@ -14,7 +14,7 @@ export const RequestBloodModal = ({ isOpen, onClose, hospital, onSubmit }: Reque
   const [formData, setFormData] = React.useState({
     bloodGroup: 'O-',
     units: 2,
-    urgency: 'medium',
+    urgency: 'Critical',
     notes: ''
   });
 
@@ -80,7 +80,7 @@ export const RequestBloodModal = ({ isOpen, onClose, hospital, onSubmit }: Reque
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-t3 uppercase tracking-widest">Urgency Protocol</label>
                 <div className="grid grid-cols-3 gap-3">
-                  {['medium', 'high', 'critical'].map(level => (
+                  {['Standard', 'High', 'Critical'].map(level => (
                     <button
                       key={level}
                       onClick={() => setFormData({ ...formData, urgency: level })}

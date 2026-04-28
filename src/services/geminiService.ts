@@ -13,17 +13,6 @@ export const getAIStatus = () => currentStatus;
 // Simulated delay helper
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-const AI_TIMEOUT_MS = 3000;
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  let timeoutHandle: any;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutHandle = setTimeout(() => reject(new Error('AI_TIMEOUT')), timeoutMs);
-  });
-  
-  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutHandle));
-}
-
 export interface Recommendation {
   hospitalId: string;
   reason: string;
@@ -40,20 +29,20 @@ export interface ParsedRequest {
 // Fallback Logic for when Gemini API fails (Quota/Network)
 function predictDemandFallback(hospitals: Hospital[]): string {
   const responses = [
-    "ACTIVE: 3 compatible donors found within 2.5km vector. AIIMS Delhi stock critical.",
-    "DISPATCH READY: Raj Kumar (O-) notified. ETA 8 mins to Safdarjung Trauma Centre.",
-    "NEURAL ALERT: O- demand spike in Noida. 4 donors detected near Max Super Speciality.",
-    "B+ shortage detected. Amit Singh and 2 others ready for transition in Sector 62.",
-    "CRITICAL: Emergency requisition at Fortis. Tactical matching found 5 high-score donors.",
-    "SYSTEM NOMINAL: Predictive analysis suggests O- stability until 16:00. Monitoring density.",
-    "LOGISTICS: 98.4% Efficiency maintained. 242 units throughput expected in current window.",
-    "VECTOR ALPHA: 3 donors found nearby. Priority escalation for O- Negative at AIIMS."
+    "O- demand rising in Ghaziabad sectors. Immediate redistribution advised via Vector Alpha.",
+    "Neural analysis detected high emergency load in Noida. Suggest preemptive rerouting to secondary tiers.",
+    "Critical blood shortage predicted in East Delhi zones within 45 minutes. Escalating inventory status.",
+    "System suggests optimizing supply route near Sector 62 due to emerging density spikes.",
+    "Tactical assessment: All regional blood banks currently stable. Monitoring for sub-triage anomalies.",
+    "AB+ inventory dipping in centralized hub. Automated requisition initiated for nearest private facilities.",
+    "Vector synchronization complete. Logistics throughput currently at 98.4%. No immediate criticalities.",
+    "Pulse analysis indicates a 15% increase in surgical trauma requests near Haryana border."
   ];
 
+  // Occasionally mix in some real data for realism
   const lowBeds = hospitals.filter(h => h.availableBeds < 10);
-  if (lowBeds.length > 0 && Math.random() > 0.6) {
-    const randomHosp = lowBeds[Math.floor(Math.random() * lowBeds.length)];
-    return `HEURISTIC ERROR BYPASS: Critical bed shortage at ${randomHosp.name}. Dispatching unit notifications and rerouting triage.`;
+  if (lowBeds.length > 0 && Math.random() > 0.5) {
+    return `HEURISTIC: Alert! Critical bed shortage at ${lowBeds[0].name}. Emergency triage must reroute to stable vectors.`;
   }
 
   return responses[Math.floor(Math.random() * responses.length)];
@@ -63,7 +52,7 @@ function recommendHospitalsFallback(bloodGroup: string, hospitals: Hospital[]): 
   return hospitals
     .map(h => {
       let score = 50;
-      const avail = h.bloodAvailability[bloodGroup as any] || 'None';
+      const avail = h.bloodAvailability[bloodGroup];
       if (avail === 'High') score += 40;
       if (avail === 'Medium') score += 20;
       if (avail === 'Low') score -= 10;
@@ -73,8 +62,8 @@ function recommendHospitalsFallback(bloodGroup: string, hospitals: Hospital[]): 
       
       return {
         hospitalId: h.id,
-        reason: `Rule-based: ${avail} ${bloodGroup} availability detected at facility.`,
-        score: Math.max(0, Math.min(100, score + Math.floor(Math.random() * 10)))
+        reason: `Rule-based: ${avail} ${bloodGroup} availability detected.`,
+        score: Math.max(0, Math.min(100, score))
       };
     })
     .sort((a, b) => b.score - a.score)
@@ -100,33 +89,22 @@ function parseUserInputFallback(input: string): ParsedRequest {
 }
 
 async function safeAI<T>(liveCall: () => Promise<T>, fallback: () => T, type: string): Promise<T> {
-  // If we've already detected it's offline (Quota hit recently), use fallback immediately and skip delay
-  if (currentStatus === 'offline') {
-     return fallback();
-  }
-
-  // Add a natural "thinking" delay for online mode only
-  const thinkTime = 400 + Math.random() * 400;
-  await delay(thinkTime); 
+  // Add a natural "thinking" delay
+  await delay(600 + Math.random() * 400); 
 
   try {
-    const result = await withTimeout(liveCall(), AI_TIMEOUT_MS);
+    const result = await liveCall();
     currentStatus = 'online';
     return result;
   } catch (error: any) {
     currentStatus = 'offline';
-    
-    const isTimeout = error.message === 'AI_TIMEOUT';
+    // If it's a 429 (Rate Limit) or 503 (Overloaded), we log it as info to avoid cluttering error logs
     const isQuotaError = error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED');
-    
-    if (isTimeout) {
-      console.warn(`[AI] ${type} Gemini timed out after ${AI_TIMEOUT_MS}ms. Falling back.`);
-    } else if (isQuotaError) {
+    if (isQuotaError) {
       console.info(`[AI] ${type} Gemini Quota Exceeded. Using Heuristic Fallback.`);
     } else {
       console.warn(`[AI] ${type} Gemini Error:`, error?.message || error);
     }
-    
     return fallback();
   }
 }
@@ -234,17 +212,12 @@ export async function parseUserInput(input: string): Promise<ParsedRequest | nul
   return safeAI(liveCall, () => parseUserInputFallback(input), "Parsing");
 }
 
-export interface RankedHospital {
-  hospital_id: string;
-  tactical_score: number;
-  ai_reasoning: string;
-}
-
 export interface TriageResult {
-  recommended_id: string; // The top one for compatibility
-  ranked: RankedHospital[];
+  recommended_id: string;
   urgency_level: 'critical' | 'high' | 'moderate' | 'low';
+  ai_reasoning: string;
   blood_advice: string;
+  tactical_score: number;
 }
 
 export async function analyzeSituation(
@@ -266,58 +239,55 @@ export async function analyzeSituation(
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `You are an AI Emergency Triage Advisor for BloodBridge Delhi NCR.
-      ANALYZE and rank the best hospitals for this emergency.
+      ANALYZE and rank the best hospital for this emergency.
       SITUATION: ${situation || "Medical emergency"}
       BLOOD GROUP NEEDED: ${bloodGroup}
       USER_LOCATION: ${userLocation ? JSON.stringify(userLocation) : "Unknown"}
       HOSPITAL CANDIDATES: ${JSON.stringify(candidates)}
-      Return JSON with top 3 ranked hospitals.`,
+      Return JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            ranked: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  hospital_id: { type: Type.STRING },
-                  tactical_score: { type: Type.NUMBER },
-                  ai_reasoning: { type: Type.STRING }
-                },
-                required: ["hospital_id", "tactical_score", "ai_reasoning"]
-              }
-            },
+            recommended_id: { type: Type.STRING },
             urgency_level: { type: Type.STRING, enum: ['critical', 'high', 'moderate', 'low'] },
+            ai_reasoning: { type: Type.STRING },
             blood_advice: { type: Type.STRING },
+            tactical_score: { type: Type.NUMBER }
           },
-          required: ["ranked", "urgency_level", "blood_advice"]
+          required: ["recommended_id", "urgency_level", "ai_reasoning", "blood_advice", "tactical_score"]
         }
       }
     });
 
-    const parsed = JSON.parse(response.text || "{}");
-    return {
-      ...parsed,
-      recommended_id: parsed.ranked?.[0]?.hospital_id || ""
-    };
+    return JSON.parse(response.text || "{}");
   };
 
   const fallback = () => {
     const recs = recommendHospitalsFallback(bloodGroup, hospitals);
+    const top = hospitals.find(h => h.id === recs[0].hospitalId)!;
     
-    const ranked: RankedHospital[] = recs.map((r, i) => ({
-      hospital_id: r.hospitalId,
-      tactical_score: r.score,
-      ai_reasoning: `Heuristic match level ${i+1} based on blood availability and facility status.`
-    }));
+    const reasonings = [
+      `Rule-based: ${top.name} shows highest availability for ${bloodGroup} in the current sector.`,
+      `Heuristic analysis suggests ${top.id.startsWith('h1') ? 'Primary' : 'Secondary'} tier facility ${top.name} for immediate ${bloodGroup} support.`,
+      `Optimal tactical score calculated for ${top.name} based on available clinical beds (${top.availableBeds}) and blood supply.`,
+      `Geographic proximity and ${bloodGroup} availability index peak at ${top.name} for the given situation.`
+    ];
+
+    const adviceList = [
+      "Follow standard emergency transfusion protocols for adult trauma.",
+      "Stabilize patient vitals during transit to facility.",
+      "Notify emergency facility of incoming critical request via neural bridge.",
+      "Monitor patient Pulse and Oxygen saturation levels during transport."
+    ];
 
     return {
-      recommended_id: ranked[0].hospital_id,
-      ranked,
+      recommended_id: top.id,
       urgency_level: 'high',
-      blood_advice: "Follow standard emergency transfusion protocols while en-route."
+      ai_reasoning: reasonings[Math.floor(Math.random() * reasonings.length)],
+      blood_advice: adviceList[Math.floor(Math.random() * adviceList.length)],
+      tactical_score: Math.floor(Math.random() * 15) + (recs[0].score > 80 ? 85 : 70)
     } as TriageResult;
   };
 

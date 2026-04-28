@@ -1,8 +1,6 @@
 {
-  "name": "Remix: Remix: Remix: BloodBridge",
+  "name": "Remix: Remix: BloodBridge",
   "description": "Smart emergency blood matching and tracking system with real-time donor map, Gemini-scored priority analysis, and automated escalation. and map",
-  "requestFramePermissions": [
-    "geolocation"
-  ],
+  "requestFramePermissions": ["geolocation"],
   "majorCapabilities": []
 }
