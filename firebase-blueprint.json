@@ -1,0 +1,113 @@
+{
+  "entities": {
+    "Hospital": {
+      "title": "Hospital",
+      "description": "Hospital facility data with emergency and bed availability metrics",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "availableBeds": { "type": "number" },
+        "totalBeds": { "type": "number" },
+        "icuBeds": { "type": "number" },
+        "bloodAvailability": {
+          "type": "object",
+          "description": "Map of blood types to availability levels (High, Medium, Low, None)"
+        },
+        "status": { "type": "string", "enum": ["available", "limited", "full"] },
+        "type": { "type": "string", "enum": ["Government", "Private", "Charity"] },
+        "emergencyStatus": { "type": "string", "enum": ["Active", "Standby"] },
+        "region": { "type": "string" },
+        "last_synced": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "lat", "lng", "status"]
+    },
+    "Donor": {
+      "title": "Donor",
+      "description": "Blood donor profile and availability",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "bg": { "type": "string", "description": "Blood Group" },
+        "loc": { "type": "string", "description": "Location name" },
+        "status": { "type": "string", "enum": ["available", "busy", "en-route"] },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "lastDon": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "name", "bg", "lat", "lng", "status"]
+    },
+    "BloodRequest": {
+      "title": "Blood Request",
+      "description": "Emergency or planned blood request.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "pat": { "type": "string", "description": "Patient Name" },
+        "hosp": { "type": "string", "description": "Hospital Name" },
+        "bg": { "type": "string" },
+        "units": { "type": "number" },
+        "urg": { "type": "string", "enum": ["critical", "high", "medium"] },
+        "status": { "type": "string", "enum": ["waiting", "confirmed", "matched", "fulfilled"] },
+        "time": { "type": "string", "format": "date-time" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "bg", "units", "urg", "status", "time"]
+    },
+    "Alert": {
+      "title": "Alert",
+      "description": "System-wide or localized emergency alerts.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["shortage", "demand", "new"] },
+        "severity": { "type": "string", "enum": ["critical", "warning", "info"] },
+        "message": { "type": "string" },
+        "time": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "type", "severity", "message", "time"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Application user profile.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["donor", "hospital_admin", "super_admin"] },
+        "hospitalId": { "type": "string", "description": "Linked hospital if role is hospital_admin" }
+      },
+      "required": ["id", "email"]
+    }
+  },
+  "firestore": {
+    "/hospitals/{hospitalId}": {
+      "schema": "Hospital",
+      "description": "Collection of medical facilities."
+    },
+    "/donors/{donorId}": {
+      "schema": "Donor",
+      "description": "Collection of registered blood donors."
+    },
+    "/bloodRequests/{requestId}": {
+      "schema": "BloodRequest",
+      "description": "Collection of active and past blood requests."
+    },
+    "/alerts/{alertId}": {
+      "schema": "Alert",
+      "description": "Collection of system alerts."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Individual user settings and profiles."
+    }
+  }
+}
